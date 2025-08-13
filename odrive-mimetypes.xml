@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/odrive-file">
+    <comment>odrive cloud file</comment>
+    <icon name="odrive"/>
+    <glob pattern="*.cloud"/>
+  </mime-type>
+  <mime-type type="application/odrive-folder">
+    <comment>odrive cloud folder</comment>
+    <icon name="odrive"/>
+    <glob pattern="*.cloudf"/>
+  </mime-type>
+</mime-info>
