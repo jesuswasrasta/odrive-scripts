@@ -15,6 +15,11 @@ Automated installer for [odrive sync agent](https://docs.odrive.com/docs/odrive-
 ./install-odrive-linux.sh
 ```
 
+**Options:**
+- `./install-odrive-linux.sh` - Normal installation (skip existing files)
+- `./install-odrive-linux.sh --force` - Force reinstall (overwrite existing files)
+- `./install-odrive-linux.sh --help` - Show help message
+
 **Requirements:**
 - Linux system with KDE desktop environment
 - `curl` installed

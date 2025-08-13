@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Service
+Icon=/usr/share/icons/odrive.png
+X-KDE-ServiceTypes=KonqPopupMenu/Plugin
+MimeType=inode/directory;
+Actions=odriveUnsync;
+Encoding=UTF-8
+
+[Desktop Action odriveUnsync]
+Name=odrive unsync
+Icon=/usr/share/icons/odrive.png
+Exec=python "$HOME/.odrive-agent/bin/odrive.py" unsync %f

@@ -5,7 +5,47 @@
 
 set -e
 
-echo "=== Installing odrive sync agent for Linux ==="
+# Parse command-line arguments
+FORCE_OVERWRITE=false
+
+show_help() {
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Install odrive sync agent on Linux with KDE integration"
+    echo ""
+    echo "Options:"
+    echo "  -f, --force    Force overwrite existing files"
+    echo "  -h, --help     Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0                # Normal installation (skip existing files)"
+    echo "  $0 --force        # Force reinstall (overwrite existing files)"
+}
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -f|--force)
+            FORCE_OVERWRITE=true
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$FORCE_OVERWRITE" = true ]; then
+    echo "=== Installing odrive sync agent for Linux (FORCE MODE) ==="
+else
+    echo "=== Installing odrive sync agent for Linux ==="
+fi
 
 # Check if curl is installed
 if ! command -v curl &> /dev/null; then
@@ -24,10 +64,14 @@ echo "1. Downloading and installing odrive sync agent..."
 # Create directory and download (64-bit by default)
 od="$HOME/.odrive-agent/bin"
 
-if [ -f "$od/odrive.py" ] && [ -f "$od/odrive" ]; then
+if [ -f "$od/odrive.py" ] && [ -f "$od/odrive" ] && [ "$FORCE_OVERWRITE" = false ]; then
     echo "odrive sync agent already installed in $od"
 else
-    echo "Installing odrive sync agent in $od..."
+    if [ "$FORCE_OVERWRITE" = true ] && [ -f "$od/odrive.py" ]; then
+        echo "Force overwriting existing odrive sync agent in $od..."
+    else
+        echo "Installing odrive sync agent in $od..."
+    fi
     curl -L "https://dl.odrive.com/odrive-py" --create-dirs -o "$od/odrive.py"
     curl -L "https://dl.odrive.com/odriveagent-lnx-64" | tar -xvzf- -C "$od/"
     curl -L "https://dl.odrive.com/odrivecli-lnx-64" | tar -xvzf- -C "$od/"
@@ -48,10 +92,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ICON_SOURCE="$SCRIPT_DIR/odrive-icon.png"
 ICON_PATH="/usr/share/icons/odrive.png"
 
-if [ -f "$ICON_PATH" ]; then
+if [ -f "$ICON_PATH" ] && [ "$FORCE_OVERWRITE" = false ]; then
     echo "odrive icon already exists in $ICON_PATH"
 elif [ -f "$ICON_SOURCE" ]; then
-    echo "Copying odrive icon from $ICON_SOURCE..."
+    if [ "$FORCE_OVERWRITE" = true ] && [ -f "$ICON_PATH" ]; then
+        echo "Force overwriting existing odrive icon..."
+    else
+        echo "Copying odrive icon from $ICON_SOURCE..."
+    fi
     sudo mkdir -p /usr/share/icons
     sudo cp "$ICON_SOURCE" "$ICON_PATH"
     echo "Icon copied to $ICON_PATH"
@@ -72,10 +120,14 @@ mkdir -p "$DESKTOP_DIR"
 
 # Copy desktop files
 for desktop_file in "odrive.desktop" "odrive-file.desktop" "odrive-folder.desktop"; do
-    if [ -f "$DESKTOP_DIR/$desktop_file" ]; then
+    if [ -f "$DESKTOP_DIR/$desktop_file" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "File $desktop_file already exists"
     elif [ -f "$SCRIPT_DIR/$desktop_file" ]; then
-        echo "Copying $desktop_file..."
+        if [ "$FORCE_OVERWRITE" = true ] && [ -f "$DESKTOP_DIR/$desktop_file" ]; then
+            echo "Force overwriting $desktop_file..."
+        else
+            echo "Copying $desktop_file..."
+        fi
         cp "$SCRIPT_DIR/$desktop_file" "$DESKTOP_DIR/"
     else
         echo "Error: $desktop_file not found in $SCRIPT_DIR"
@@ -83,7 +135,58 @@ for desktop_file in "odrive.desktop" "odrive-file.desktop" "odrive-folder.deskto
     fi
 done
 
-echo "5. Setting up KDE/Dolphin context menu..."
+echo "5. Installing recursive sync helper script..."
+
+# Install recursive sync helper script
+LOCAL_BIN_DIR="$HOME/.local/bin"
+mkdir -p "$LOCAL_BIN_DIR"
+
+if [ -f "$LOCAL_BIN_DIR/odrive-sync-recursive.sh" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    echo "Recursive sync script already exists"
+elif [ -f "$SCRIPT_DIR/odrive-sync-recursive.sh" ]; then
+    if [ "$FORCE_OVERWRITE" = true ] && [ -f "$LOCAL_BIN_DIR/odrive-sync-recursive.sh" ]; then
+        echo "Force overwriting recursive sync script..."
+    else
+        echo "Installing recursive sync script..."
+    fi
+    cp "$SCRIPT_DIR/odrive-sync-recursive.sh" "$LOCAL_BIN_DIR/"
+    chmod +x "$LOCAL_BIN_DIR/odrive-sync-recursive.sh"
+    
+    # Make sure ~/.local/bin is in PATH for desktop applications
+    if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
+        echo "Note: Make sure ~/.local/bin is in your PATH for context menus to work"
+    fi
+    echo "Recursive sync script installed"
+else
+    echo "Warning: odrive-sync-recursive.sh not found, recursive sync will not work"
+fi
+
+echo "6. Installing MIME type definitions..."
+
+# Install MIME type definitions for .cloud and .cloudf files
+MIME_DIR="$HOME/.local/share/mime/packages"
+mkdir -p "$MIME_DIR"
+
+if [ -f "$MIME_DIR/odrive-mimetypes.xml" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    echo "MIME type definitions already exist"
+elif [ -f "$SCRIPT_DIR/odrive-mimetypes.xml" ]; then
+    if [ "$FORCE_OVERWRITE" = true ] && [ -f "$MIME_DIR/odrive-mimetypes.xml" ]; then
+        echo "Force overwriting MIME type definitions..."
+    else
+        echo "Installing MIME type definitions..."
+    fi
+    cp "$SCRIPT_DIR/odrive-mimetypes.xml" "$MIME_DIR/"
+    
+    # Update MIME database
+    if command -v update-mime-database &> /dev/null; then
+        update-mime-database "$HOME/.local/share/mime" 2>/dev/null || true
+        echo "MIME database updated"
+    fi
+else
+    echo "Warning: odrive-mimetypes.xml not found, MIME types not installed"
+fi
+
+echo "7. Setting up KDE/Dolphin context menu..."
 
 # Detect KDE Plasma version
 KDE_VERSION=""
@@ -116,14 +219,32 @@ if [ "$KDE_VERSION" = "5" ]; then
     mkdir -p "$SERVICE_MENU_DIR"
     CREATED_DIRS="- Service menu KDE5: $SERVICE_MENU_DIR"
     
-    if [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ]; then
+    if [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE5 service menu already exists"
     elif [ -f "$SCRIPT_DIR/odriveSync-kde5.desktop" ]; then
-        echo "Copying service menu for KDE5..."
+        if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ]; then
+            echo "Force overwriting KDE5 service menu..."
+        else
+            echo "Copying service menu for KDE5..."
+        fi
         cp "$SCRIPT_DIR/odriveSync-kde5.desktop" "$SERVICE_MENU_DIR/odriveSync.desktop"
     else
         echo "Error: odriveSync-kde5.desktop not found in $SCRIPT_DIR"
         exit 1
+    fi
+    
+    # Install folder service menu for KDE5
+    if [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+        echo "KDE5 folder service menu already exists"
+    elif [ -f "$SCRIPT_DIR/odriveFolders-kde5.desktop" ]; then
+        if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ]; then
+            echo "Force overwriting KDE5 folder service menu..."
+        else
+            echo "Copying folder service menu for KDE5..."
+        fi
+        cp "$SCRIPT_DIR/odriveFolders-kde5.desktop" "$SERVICE_MENU_DIR/odriveFolders.desktop"
+    else
+        echo "Warning: odriveFolders-kde5.desktop not found in $SCRIPT_DIR"
     fi
 
 elif [ "$KDE_VERSION" = "6" ]; then
@@ -132,14 +253,32 @@ elif [ "$KDE_VERSION" = "6" ]; then
     mkdir -p "$SERVICE_MENU_DIR"
     CREATED_DIRS="- Service menu KDE6: $SERVICE_MENU_DIR"
     
-    if [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ]; then
+    if [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE6 service menu already exists"
     elif [ -f "$SCRIPT_DIR/odriveSync-kde6.desktop" ]; then
-        echo "Copying service menu for KDE6..."
+        if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ]; then
+            echo "Force overwriting KDE6 service menu..."
+        else
+            echo "Copying service menu for KDE6..."
+        fi
         cp "$SCRIPT_DIR/odriveSync-kde6.desktop" "$SERVICE_MENU_DIR/odriveSync.desktop"
     else
         echo "Error: odriveSync-kde6.desktop not found in $SCRIPT_DIR"
         exit 1
+    fi
+    
+    # Install folder service menu for KDE6
+    if [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+        echo "KDE6 folder service menu already exists"
+    elif [ -f "$SCRIPT_DIR/odriveFolders-kde6.desktop" ]; then
+        if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ]; then
+            echo "Force overwriting KDE6 folder service menu..."
+        else
+            echo "Copying folder service menu for KDE6..."
+        fi
+        cp "$SCRIPT_DIR/odriveFolders-kde6.desktop" "$SERVICE_MENU_DIR/odriveFolders.desktop"
+    else
+        echo "Warning: odriveFolders-kde6.desktop not found in $SCRIPT_DIR"
     fi
 
 else
@@ -150,48 +289,88 @@ else
     SERVICE_MENU_DIR_KDE5="$HOME/.local/share/kservices5/ServiceMenus"
     mkdir -p "$SERVICE_MENU_DIR_KDE5"
     
-    if [ -f "$SERVICE_MENU_DIR_KDE5/odriveSync.desktop" ]; then
+    if [ -f "$SERVICE_MENU_DIR_KDE5/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE5 service menu already exists (fallback)"
     elif [ -f "$SCRIPT_DIR/odriveSync-kde5.desktop" ]; then
-        echo "Copying service menu for KDE5 (fallback)..."
+        if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR_KDE5/odriveSync.desktop" ]; then
+            echo "Force overwriting KDE5 service menu (fallback)..."
+        else
+            echo "Copying service menu for KDE5 (fallback)..."
+        fi
         cp "$SCRIPT_DIR/odriveSync-kde5.desktop" "$SERVICE_MENU_DIR_KDE5/odriveSync.desktop"
     else
         echo "Error: odriveSync-kde5.desktop not found"
         exit 1
     fi
     
+    # Install folder service menu for KDE5 (fallback)
+    if [ -f "$SERVICE_MENU_DIR_KDE5/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+        echo "KDE5 folder service menu already exists (fallback)"
+    elif [ -f "$SCRIPT_DIR/odriveFolders-kde5.desktop" ]; then
+        if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR_KDE5/odriveFolders.desktop" ]; then
+            echo "Force overwriting KDE5 folder service menu (fallback)..."
+        else
+            echo "Copying folder service menu for KDE5 (fallback)..."
+        fi
+        cp "$SCRIPT_DIR/odriveFolders-kde5.desktop" "$SERVICE_MENU_DIR_KDE5/odriveFolders.desktop"
+    else
+        echo "Warning: odriveFolders-kde5.desktop not found"
+    fi
+    
     # KDE6
     SERVICE_MENU_DIR_KDE6="$HOME/.local/share/kio/servicemenus"
     mkdir -p "$SERVICE_MENU_DIR_KDE6"
     
-    if [ -f "$SERVICE_MENU_DIR_KDE6/odriveSync.desktop" ]; then
+    if [ -f "$SERVICE_MENU_DIR_KDE6/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE6 service menu already exists (fallback)"
     elif [ -f "$SCRIPT_DIR/odriveSync-kde6.desktop" ]; then
-        echo "Copying service menu for KDE6 (fallback)..."
+        if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR_KDE6/odriveSync.desktop" ]; then
+            echo "Force overwriting KDE6 service menu (fallback)..."
+        else
+            echo "Copying service menu for KDE6 (fallback)..."
+        fi
         cp "$SCRIPT_DIR/odriveSync-kde6.desktop" "$SERVICE_MENU_DIR_KDE6/odriveSync.desktop"
     else
         echo "Error: odriveSync-kde6.desktop not found"
         exit 1
+    fi
+    
+    # Install folder service menu for KDE6 (fallback)
+    if [ -f "$SERVICE_MENU_DIR_KDE6/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+        echo "KDE6 folder service menu already exists (fallback)"
+    elif [ -f "$SCRIPT_DIR/odriveFolders-kde6.desktop" ]; then
+        if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR_KDE6/odriveFolders.desktop" ]; then
+            echo "Force overwriting KDE6 folder service menu (fallback)..."
+        else
+            echo "Copying folder service menu for KDE6 (fallback)..."
+        fi
+        cp "$SCRIPT_DIR/odriveFolders-kde6.desktop" "$SERVICE_MENU_DIR_KDE6/odriveFolders.desktop"
+    else
+        echo "Warning: odriveFolders-kde6.desktop not found"
     fi
 
     CREATED_DIRS="- Service menu KDE5: $SERVICE_MENU_DIR_KDE5
 - Service menu KDE6: $SERVICE_MENU_DIR_KDE6"
 fi
 
-echo "6. Updating desktop database..."
+echo "8. Updating desktop database..."
 update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
 
-echo "7. Setting up systemd user service..."
+echo "9. Setting up systemd user service..."
 
 # Create systemd user service directory
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 mkdir -p "$SYSTEMD_USER_DIR"
 
 # Install systemd service file
-if [ -f "$SYSTEMD_USER_DIR/odrive.service" ]; then
+if [ -f "$SYSTEMD_USER_DIR/odrive.service" ] && [ "$FORCE_OVERWRITE" = false ]; then
     echo "Systemd service already exists"
 elif [ -f "$SCRIPT_DIR/odrive.service" ]; then
-    echo "Copying systemd service..."
+    if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SYSTEMD_USER_DIR/odrive.service" ]; then
+        echo "Force overwriting systemd service..."
+    else
+        echo "Copying systemd service..."
+    fi
     cp "$SCRIPT_DIR/odrive.service" "$SYSTEMD_USER_DIR/"
     echo "Systemd service installed"
 else
@@ -248,6 +427,7 @@ echo "Configuration files created:"
 echo "- odrive binaries: $HOME/.odrive-agent/bin/"
 echo "- Mount folder: $HOME/odrive-agent-mount/"
 echo "- .desktop files: $HOME/.local/share/applications/"
+echo "- Recursive sync script: $HOME/.local/bin/"
 echo "- Systemd service: $HOME/.config/systemd/user/"
 echo "$CREATED_DIRS"
 echo ""
