@@ -38,7 +38,11 @@ Automated installer for [odrive sync agent](https://docs.odrive.com/docs/odrive-
    - Registers `.cloud` and `.cloudf` file extensions with the system
    - Enables proper file recognition and icon display
 6. **Adds KDE context menu** in Dolphin:
-   - Right-click on cloud files shows "odrive sync" option
+   - Right-click on `.cloud` and `.cloudf` files shows sync options:
+     - "odrive sync" - Sync single file/folder
+     - "odrive sync all (recursive)" - Recursively sync entire folder contents
+     - "odrive unsync" - Convert back to placeholder
+   - Right-click on any folder shows "odrive unsync" option
    - Compatible with both KDE Plasma 5 and 6
 7. **Sets up systemd user service** (optional):
    - Enables automatic startup at boot
@@ -207,6 +211,30 @@ systemctl --user disable odrive.service
 
 ## Logs and Troubleshooting
 
+### Context Menu Issues
+If the right-click context menus don't appear:
+
+1. **Check if service menu files are executable**:
+   ```bash
+   ls -la ~/.local/share/kio/servicemenus/
+   chmod +x ~/.local/share/kio/servicemenus/*.desktop
+   ```
+
+2. **Rebuild KDE cache and restart Dolphin**:
+   ```bash
+   kbuildsycoca6
+   update-desktop-database ~/.local/share/applications/
+   killall dolphin
+   ```
+   
+   For KDE Plasma 5, use `kbuildsycoca5` instead of `kbuildsycoca6`.
+
+4. **Check recursive sync debug logs**:
+   ```bash
+   tail -f ~/.odrive-agent/log/recursive-sync-debug.log
+   ```
+
+### General Troubleshooting
 - **odrive agent logs**: `~/.odrive-agent/log/main.log`
 - **systemd service logs**: `journalctl --user -u odrive.service`
 - **Advanced configuration**: `~/.odrive-agent/odrive_user_general_conf.txt`

@@ -129,6 +129,7 @@ for desktop_file in "odrive.desktop" "odrive-file.desktop" "odrive-folder.deskto
             echo "Copying $desktop_file..."
         fi
         cp "$SCRIPT_DIR/$desktop_file" "$DESKTOP_DIR/"
+        chmod +x "$DESKTOP_DIR/$desktop_file"
     else
         echo "Error: $desktop_file not found in $SCRIPT_DIR"
         exit 1
@@ -137,7 +138,7 @@ done
 
 echo "5. Installing recursive sync helper script..."
 
-# Install recursive sync helper script
+# Install recursive sync helper script (with debug logging)
 LOCAL_BIN_DIR="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN_DIR"
 
@@ -160,6 +161,7 @@ elif [ -f "$SCRIPT_DIR/odrive-sync-recursive.sh" ]; then
 else
     echo "Warning: odrive-sync-recursive.sh not found, recursive sync will not work"
 fi
+
 
 echo "6. Installing MIME type definitions..."
 
@@ -228,6 +230,7 @@ if [ "$KDE_VERSION" = "5" ]; then
             echo "Copying service menu for KDE5..."
         fi
         cp "$SCRIPT_DIR/odriveSync-kde5.desktop" "$SERVICE_MENU_DIR/odriveSync.desktop"
+        chmod +x "$SERVICE_MENU_DIR/odriveSync.desktop"
     else
         echo "Error: odriveSync-kde5.desktop not found in $SCRIPT_DIR"
         exit 1
@@ -243,6 +246,7 @@ if [ "$KDE_VERSION" = "5" ]; then
             echo "Copying folder service menu for KDE5..."
         fi
         cp "$SCRIPT_DIR/odriveFolders-kde5.desktop" "$SERVICE_MENU_DIR/odriveFolders.desktop"
+        chmod +x "$SERVICE_MENU_DIR/odriveFolders.desktop"
     else
         echo "Warning: odriveFolders-kde5.desktop not found in $SCRIPT_DIR"
     fi
@@ -262,6 +266,7 @@ elif [ "$KDE_VERSION" = "6" ]; then
             echo "Copying service menu for KDE6..."
         fi
         cp "$SCRIPT_DIR/odriveSync-kde6.desktop" "$SERVICE_MENU_DIR/odriveSync.desktop"
+        chmod +x "$SERVICE_MENU_DIR/odriveSync.desktop"
     else
         echo "Error: odriveSync-kde6.desktop not found in $SCRIPT_DIR"
         exit 1
@@ -277,6 +282,7 @@ elif [ "$KDE_VERSION" = "6" ]; then
             echo "Copying folder service menu for KDE6..."
         fi
         cp "$SCRIPT_DIR/odriveFolders-kde6.desktop" "$SERVICE_MENU_DIR/odriveFolders.desktop"
+        chmod +x "$SERVICE_MENU_DIR/odriveFolders.desktop"
     else
         echo "Warning: odriveFolders-kde6.desktop not found in $SCRIPT_DIR"
     fi
@@ -298,6 +304,7 @@ else
             echo "Copying service menu for KDE5 (fallback)..."
         fi
         cp "$SCRIPT_DIR/odriveSync-kde5.desktop" "$SERVICE_MENU_DIR_KDE5/odriveSync.desktop"
+        chmod +x "$SERVICE_MENU_DIR_KDE5/odriveSync.desktop"
     else
         echo "Error: odriveSync-kde5.desktop not found"
         exit 1
@@ -313,6 +320,7 @@ else
             echo "Copying folder service menu for KDE5 (fallback)..."
         fi
         cp "$SCRIPT_DIR/odriveFolders-kde5.desktop" "$SERVICE_MENU_DIR_KDE5/odriveFolders.desktop"
+        chmod +x "$SERVICE_MENU_DIR_KDE5/odriveFolders.desktop"
     else
         echo "Warning: odriveFolders-kde5.desktop not found"
     fi
@@ -330,6 +338,7 @@ else
             echo "Copying service menu for KDE6 (fallback)..."
         fi
         cp "$SCRIPT_DIR/odriveSync-kde6.desktop" "$SERVICE_MENU_DIR_KDE6/odriveSync.desktop"
+        chmod +x "$SERVICE_MENU_DIR_KDE6/odriveSync.desktop"
     else
         echo "Error: odriveSync-kde6.desktop not found"
         exit 1
@@ -345,6 +354,7 @@ else
             echo "Copying folder service menu for KDE6 (fallback)..."
         fi
         cp "$SCRIPT_DIR/odriveFolders-kde6.desktop" "$SERVICE_MENU_DIR_KDE6/odriveFolders.desktop"
+        chmod +x "$SERVICE_MENU_DIR_KDE6/odriveFolders.desktop"
     else
         echo "Warning: odriveFolders-kde6.desktop not found"
     fi
