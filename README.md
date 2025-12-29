@@ -17,8 +17,16 @@ Automated installer for [odrive sync agent](https://docs.odrive.com/docs/odrive-
 
 **Options:**
 - `./install-odrive-linux.sh` - Normal installation (skip existing files)
-- `./install-odrive-linux.sh --force` - Force reinstall (overwrite existing files)
+- `./install-odrive-linux.sh --check` - Verify installation status without making changes
+- `./install-odrive-linux.sh --repair` - Fix missing or broken components
+- `./install-odrive-linux.sh --force` - Force complete reinstall (overwrite all files)
 - `./install-odrive-linux.sh --help` - Show help message
+
+**The script is idempotent:** You can run it multiple times safely. It will:
+- Skip components that are already correctly installed
+- Report what's installed vs what's missing (with `--check`)
+- Fix only broken/missing components (with `--repair`)
+- Overwrite everything only when requested (with `--force`)
 
 **Requirements:**
 - Linux system with KDE desktop environment

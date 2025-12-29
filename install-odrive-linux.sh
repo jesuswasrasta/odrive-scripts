@@ -7,24 +7,38 @@ set -e
 
 # Parse command-line arguments
 FORCE_OVERWRITE=false
+CHECK_ONLY=false
+REPAIR_MODE=false
 
 show_help() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
-    echo "Install odrive sync agent on Linux with KDE integration"
+    echo "Install, verify, or repair odrive sync agent on Linux with KDE integration"
     echo ""
     echo "Options:"
-    echo "  -f, --force    Force overwrite existing files"
+    echo "  -c, --check    Check installation status without making changes"
+    echo "  -r, --repair   Repair/fix existing installation (reinstall missing/broken components)"
+    echo "  -f, --force    Force overwrite ALL files (complete reinstall)"
     echo "  -h, --help     Show this help message"
     echo ""
     echo "Examples:"
     echo "  $0                # Normal installation (skip existing files)"
-    echo "  $0 --force        # Force reinstall (overwrite existing files)"
+    echo "  $0 --check        # Verify installation status"
+    echo "  $0 --repair       # Fix missing or broken components"
+    echo "  $0 --force        # Complete reinstall (overwrite everything)"
 }
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
+        -c|--check)
+            CHECK_ONLY=true
+            shift
+            ;;
+        -r|--repair)
+            REPAIR_MODE=true
+            shift
+            ;;
         -f|--force)
             FORCE_OVERWRITE=true
             shift
@@ -41,11 +55,60 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [ "$FORCE_OVERWRITE" = true ]; then
+# Mode display
+if [ "$CHECK_ONLY" = true ]; then
+    echo "=== Checking odrive sync agent installation ==="
+elif [ "$FORCE_OVERWRITE" = true ]; then
     echo "=== Installing odrive sync agent for Linux (FORCE MODE) ==="
+elif [ "$REPAIR_MODE" = true ]; then
+    echo "=== Repairing odrive sync agent installation ==="
 else
     echo "=== Installing odrive sync agent for Linux ==="
 fi
+
+# Global counters for check mode
+TOTAL_CHECKS=0
+PASSED_CHECKS=0
+FAILED_CHECKS=0
+
+# Utility functions for check/repair mode
+check_status() {
+    local component="$1"
+    local status="$2"  # "OK" or "MISSING" or "BROKEN"
+    local details="$3"
+
+    TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
+
+    if [ "$status" = "OK" ]; then
+        echo "  ✓ $component: OK"
+        PASSED_CHECKS=$((PASSED_CHECKS + 1))
+        return 0
+    else
+        echo "  ✗ $component: $status"
+        [ -n "$details" ] && echo "    → $details"
+        FAILED_CHECKS=$((FAILED_CHECKS + 1))
+        return 1
+    fi
+}
+
+should_install() {
+    # Returns 0 (true) if we should proceed with installation
+    # Returns 1 (false) if we should skip
+
+    if [ "$CHECK_ONLY" = true ]; then
+        return 1  # Never install in check mode
+    fi
+
+    if [ "$FORCE_OVERWRITE" = true ]; then
+        return 0  # Always install in force mode
+    fi
+
+    if [ "$REPAIR_MODE" = true ]; then
+        return 0  # Install in repair mode (will be controlled by file existence checks)
+    fi
+
+    return 0  # Install in normal mode (will be controlled by file existence checks)
+}
 
 # Check if curl is installed
 if ! command -v curl &> /dev/null; then
@@ -59,31 +122,56 @@ if ! command -v python &> /dev/null && ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-echo "1. Downloading and installing odrive sync agent..."
+echo "1. Checking odrive sync agent..."
 
 # Create directory and download (64-bit by default)
 od="$HOME/.odrive-agent/bin"
 
-if [ -f "$od/odrive.py" ] && [ -f "$od/odrive" ] && [ "$FORCE_OVERWRITE" = false ]; then
-    echo "odrive sync agent already installed in $od"
-else
-    if [ "$FORCE_OVERWRITE" = true ] && [ -f "$od/odrive.py" ]; then
-        echo "Force overwriting existing odrive sync agent in $od..."
+# Check if binaries exist
+if [ -f "$od/odrive.py" ] && [ -f "$od/odrive" ] && [ -f "$od/odriveagent" ]; then
+    if [ "$CHECK_ONLY" = true ]; then
+        check_status "odrive binaries" "OK" "$od"
     else
-        echo "Installing odrive sync agent in $od..."
+        echo "odrive sync agent already installed in $od"
     fi
-    curl -L "https://dl.odrive.com/odrive-py" --create-dirs -o "$od/odrive.py"
-    curl -L "https://dl.odrive.com/odriveagent-lnx-64" | tar -xvzf- -C "$od/"
-    curl -L "https://dl.odrive.com/odrivecli-lnx-64" | tar -xvzf- -C "$od/"
-    echo "odrive sync agent installed successfully"
+
+    # Skip installation if files exist and not forcing
+    if [ "$FORCE_OVERWRITE" = false ] && [ "$REPAIR_MODE" = false ]; then
+        : # Do nothing
+    elif should_install; then
+        echo "Reinstalling odrive sync agent in $od..."
+        curl -L "https://dl.odrive.com/odrive-py" --create-dirs -o "$od/odrive.py"
+        curl -L "https://dl.odrive.com/odriveagent-lnx-64" | tar -xvzf- -C "$od/"
+        curl -L "https://dl.odrive.com/odrivecli-lnx-64" | tar -xvzf- -C "$od/"
+        echo "odrive sync agent reinstalled successfully"
+    fi
+else
+    # Binaries missing or incomplete
+    if [ "$CHECK_ONLY" = true ]; then
+        check_status "odrive binaries" "MISSING" "Expected location: $od"
+    elif should_install; then
+        echo "Installing odrive sync agent in $od..."
+        curl -L "https://dl.odrive.com/odrive-py" --create-dirs -o "$od/odrive.py"
+        curl -L "https://dl.odrive.com/odriveagent-lnx-64" | tar -xvzf- -C "$od/"
+        curl -L "https://dl.odrive.com/odrivecli-lnx-64" | tar -xvzf- -C "$od/"
+        echo "odrive sync agent installed successfully"
+    fi
 fi
 
-echo "2. Creating mount folder..."
-if [ ! -d "$HOME/odrive-agent-mount" ]; then
-    mkdir -p "$HOME/odrive-agent-mount"
-    echo "Mount folder created: $HOME/odrive-agent-mount"
+echo "2. Checking mount folder..."
+if [ -d "$HOME/odrive-agent-mount" ]; then
+    if [ "$CHECK_ONLY" = true ]; then
+        check_status "mount folder" "OK" "$HOME/odrive-agent-mount"
+    else
+        echo "Mount folder already exists: $HOME/odrive-agent-mount"
+    fi
 else
-    echo "Mount folder already exists: $HOME/odrive-agent-mount"
+    if [ "$CHECK_ONLY" = true ]; then
+        check_status "mount folder" "MISSING" "Expected: $HOME/odrive-agent-mount"
+    elif should_install; then
+        mkdir -p "$HOME/odrive-agent-mount"
+        echo "Mount folder created: $HOME/odrive-agent-mount"
+    fi
 fi
 
 echo "3. Setting up odrive icons for MIME types..."
@@ -424,10 +512,14 @@ else
     echo "Warning: odrive.service not found, systemd service not installed"
 fi
 
-# Ask user if they want to enable the service
-echo ""
-echo "Do you want to enable automatic odrive startup? (y/N)"
-read -r enable_service
+# Ask user if they want to enable the service (skip in check mode)
+if [ "$CHECK_ONLY" = false ]; then
+    echo ""
+    echo "Do you want to enable automatic odrive startup? (y/N)"
+    read -r enable_service
+else
+    enable_service="n"
+fi
 
 if [[ "$enable_service" =~ ^[Yy]$ ]]; then
     echo "Enabling systemd service..."
@@ -462,7 +554,39 @@ else
 fi
 
 echo ""
-echo "=== Installation completed! ==="
+
+# Display summary based on mode
+if [ "$CHECK_ONLY" = true ]; then
+    echo "=== Installation Check Complete ==="
+    echo ""
+    echo "Status Summary:"
+    echo "  Total components checked: $TOTAL_CHECKS"
+    echo "  ✓ Working correctly: $PASSED_CHECKS"
+    echo "  ✗ Issues found: $FAILED_CHECKS"
+    echo ""
+
+    if [ $FAILED_CHECKS -gt 0 ]; then
+        echo "To fix issues, run:"
+        echo "  $0 --repair    # Fix missing/broken components"
+        echo "  $0 --force     # Complete reinstall"
+        exit 1
+    else
+        echo "✓ All components are correctly installed!"
+        exit 0
+    fi
+elif [ "$REPAIR_MODE" = true ]; then
+    echo "=== Repair completed! ==="
+    echo ""
+    if [ $FAILED_CHECKS -gt 0 ]; then
+        echo "⚠ Some issues may remain. Run with --check to verify:"
+        echo "  $0 --check"
+    else
+        echo "✓ Installation repaired successfully!"
+    fi
+else
+    echo "=== Installation completed! ==="
+fi
+
 echo ""
 echo "Next manual steps:"
 echo "1. Create an account on odrive.com if you don't have one"
@@ -470,18 +594,19 @@ echo "2. Generate an authentication key from your odrive account"
 echo "3. Authenticate the agent with: python \"$HOME/.odrive-agent/bin/odrive.py\" authenticate [your-auth-key]"
 echo "4. Mount odrive with: python \"$HOME/.odrive-agent/bin/odrive.py\" mount \"$HOME/odrive-agent-mount\" /"
 echo ""
-echo "Configuration files created:"
+echo "Configuration files location:"
 echo "- odrive binaries: $HOME/.odrive-agent/bin/"
 echo "- Mount folder: $HOME/odrive-agent-mount/"
 echo "- .desktop files: $HOME/.local/share/applications/"
 echo "- MIME type icons: $HOME/.local/share/icons/hicolor/256x256/mimetypes/"
 echo "- MIME type definitions: $HOME/.local/share/mime/packages/"
-echo "- Recursive sync script: $HOME/.local/bin/"
 echo "- Systemd service: $HOME/.config/systemd/user/"
 echo "$CREATED_DIRS"
 echo ""
 echo "Useful commands:"
-echo "- Check service status: systemctl --user status odrive.service"
+echo "- Check installation: $0 --check"
+echo "- Repair installation: $0 --repair"
+echo "- Service status: systemctl --user status odrive.service"
 echo "- Start service: systemctl --user start odrive.service"
 echo "- Stop service: systemctl --user stop odrive.service"
 echo "- Service logs: journalctl --user -u odrive.service"
