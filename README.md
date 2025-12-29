@@ -24,13 +24,13 @@ Automated installer for [odrive sync agent](https://docs.odrive.com/docs/odrive-
 - Linux system with KDE desktop environment
 - `curl` installed
 - `python` or `python3` installed
-- `odrive-icon.png` file in the same directory as the script
+- `odrive-logo.png` file (256×256 square icon) in the same directory as the script
 
 ## What the Script Does
 
 1. **Downloads odrive sync agent** (64-bit) to `~/.odrive-agent/bin/`
 2. **Creates mount directory** at `~/odrive-agent-mount/`
-3. **Installs icon** to `/usr/share/icons/odrive.png`
+3. **Installs MIME type icons** to `~/.local/share/icons/hicolor/256x256/mimetypes/`
 4. **Creates file associations** for `.cloud` and `.cloudf` files:
    - Double-click on cloud files automatically syncs them
    - Files are associated with odrive in system file manager
@@ -203,10 +203,130 @@ systemctl --user disable odrive.service
 ~/odrive-agent-mount/                        # mount point for cloud files
 ~/.local/share/applications/                 # .desktop files for file associations
 ~/.local/share/mime/packages/                # MIME type definitions
+~/.local/share/icons/hicolor/256x256/mimetypes/  # MIME type icons
 ~/.config/systemd/user/odrive.service        # systemd user service
-/usr/share/icons/odrive.png                  # odrive icon
 ~/.local/share/kio/servicemenus/             # KDE6 service menu
 ~/.local/share/kservices5/ServiceMenus/      # KDE5 service menu (if detected)
+```
+
+## MIME Type and Icon Configuration
+
+The installer sets up MIME type associations so that `.cloud` and `.cloudf` files display with the odrive icon and open with the correct application when double-clicked.
+
+### How MIME Types Work
+
+The system uses three components for proper file recognition:
+
+1. **MIME type definitions** (`~/.local/share/mime/packages/odrive-mimetypes.xml`)
+2. **Icon theme integration** (`~/.local/share/icons/hicolor/256x256/mimetypes/`)
+3. **Desktop file associations** (`~/.local/share/applications/odrive-*.desktop`)
+
+### Icon Installation Details
+
+Icons are installed in the freedesktop.org standard location:
+
+```
+~/.local/share/icons/hicolor/256x256/mimetypes/
+├── application-odrive-file.png      # Icon for .cloud files
+├── application-odrive-folder.png    # Icon for .cloudf files
+└── odrive.png                        # Generic odrive icon
+```
+
+The installer uses `odrive-logo.png` (256×256) for MIME type icons because:
+- It's square, which is required for proper icon theme integration
+- 256×256 is a standard size for modern desktop environments
+- The icon name follows the pattern `application-<mime-subtype>.png`
+
+### MIME Type Definitions
+
+The `odrive-mimetypes.xml` file defines two MIME types:
+
+```xml
+<mime-type type="application/odrive-file">
+  <comment>odrive cloud file</comment>
+  <icon name="odrive"/>
+  <glob pattern="*.cloud" weight="100"/>
+</mime-type>
+<mime-type type="application/odrive-folder">
+  <comment>odrive cloud folder</comment>
+  <icon name="odrive"/>
+  <glob pattern="*.cloudf" weight="100"/>
+</mime-type>
+```
+
+The `weight="100"` attribute gives glob pattern matching higher priority over content-based detection.
+
+### Desktop File Icon References
+
+Desktop files use theme-based icon names instead of absolute paths:
+
+```ini
+[Desktop Entry]
+Icon=application-odrive-file      # Not /path/to/icon.png
+MimeType=application/odrive-file;
+```
+
+This allows the system to:
+- Automatically find icons in the theme directories
+- Support different icon themes
+- Provide fallback icons if needed
+
+### Known Limitation: Empty .cloudf Files
+
+`.cloudf` placeholder files are often 0 bytes in size. This causes GIO (used by KDE Dolphin) to detect them as `application/x-zerosize` instead of `application/odrive-folder`, because content-based MIME detection takes precedence over extension-based detection for empty files.
+
+**Impact**: Minimal - the files still work correctly:
+- ✅ Double-clicking opens them with the correct application
+- ✅ System-level MIME type association (`xdg-mime`) is correct
+- ✅ Desktop file associations work properly
+- ⚠️ Icon may not display in Dolphin for empty `.cloudf` files
+- ✅ Non-empty `.cloud` files display icons correctly
+
+### Manual MIME Type Configuration
+
+If you need to manually update MIME types and icons:
+
+```bash
+# 1. Update MIME database
+update-mime-database ~/.local/share/mime
+
+# 2. Update desktop database
+update-desktop-database ~/.local/share/applications/
+
+# 3. Rebuild KDE cache
+kbuildsycoca6 --noincremental  # KDE Plasma 6
+# or
+kbuildsycoca5 --noincremental  # KDE Plasma 5
+
+# 4. Verify MIME type detection
+xdg-mime query filetype ~/odrive-agent-mount/file.cloud
+xdg-mime query filetype ~/odrive-agent-mount/folder.cloudf
+
+# 5. Check desktop file associations
+gio mime application/odrive-file
+gio mime application/odrive-folder
+```
+
+### Testing Icon Display
+
+To verify icons are correctly configured:
+
+```bash
+# Check installed icons
+ls -lh ~/.local/share/icons/hicolor/256x256/mimetypes/ | grep odrive
+
+# Test .cloud file detection
+gio info ~/odrive-agent-mount/some-file.cloud | grep -E "(content-type|icon)"
+
+# Test .cloudf file detection
+gio info ~/odrive-agent-mount/some-folder.cloudf | grep -E "(content-type|icon)"
+
+# Verify MIME type registration
+xdg-mime query filetype ~/odrive-agent-mount/test.cloud
+# Should output: application/odrive-file
+
+xdg-mime query filetype ~/odrive-agent-mount/test.cloudf
+# Should output: application/odrive-folder
 ```
 
 ## Logs and Troubleshooting
@@ -233,6 +353,46 @@ If the right-click context menus don't appear:
    ```bash
    tail -f ~/.odrive-agent/log/recursive-sync-debug.log
    ```
+
+### MIME Type and Icon Issues
+
+If `.cloud` and `.cloudf` files don't show the correct icon:
+
+1. **Verify icons are installed**:
+   ```bash
+   ls -lh ~/.local/share/icons/hicolor/256x256/mimetypes/ | grep odrive
+   ```
+   Should show: `application-odrive-file.png`, `application-odrive-folder.png`, `odrive.png`
+
+2. **Check MIME type detection**:
+   ```bash
+   xdg-mime query filetype ~/odrive-agent-mount/test.cloud
+   # Should output: application/odrive-file
+
+   xdg-mime query filetype ~/odrive-agent-mount/test.cloudf
+   # Should output: application/odrive-folder
+   ```
+
+3. **Rebuild databases**:
+   ```bash
+   update-mime-database ~/.local/share/mime
+   update-desktop-database ~/.local/share/applications/
+   kbuildsycoca6 --noincremental
+   ```
+
+4. **Verify desktop file icons**:
+   ```bash
+   grep "^Icon=" ~/.local/share/applications/odrive-*.desktop
+   ```
+   Should show theme-based names (e.g., `Icon=application-odrive-file`), not absolute paths
+
+5. **Restart file manager**:
+   ```bash
+   killall dolphin
+   dolphin &
+   ```
+
+**Note**: Empty `.cloudf` files (0 bytes) may not display icons correctly in Dolphin due to GIO's content-based MIME detection. This is a known limitation and doesn't affect functionality.
 
 ### General Troubleshooting
 - **odrive agent logs**: `~/.odrive-agent/log/main.log`

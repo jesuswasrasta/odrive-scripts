@@ -3,11 +3,11 @@
   <mime-type type="application/odrive-file">
     <comment>odrive cloud file</comment>
     <icon name="odrive"/>
-    <glob pattern="*.cloud"/>
+    <glob pattern="*.cloud" weight="100"/>
   </mime-type>
   <mime-type type="application/odrive-folder">
     <comment>odrive cloud folder</comment>
     <icon name="odrive"/>
-    <glob pattern="*.cloudf"/>
+    <glob pattern="*.cloudf" weight="100"/>
   </mime-type>
 </mime-info>

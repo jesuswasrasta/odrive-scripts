@@ -6,5 +6,5 @@ Actions=odriveUnsync;
 
 [Desktop Action odriveUnsync]
 Name=odrive unsync
-Icon=/usr/share/icons/odrive.png
-Exec=python "$HOME/.odrive-agent/bin/odrive.py" unsync %f
+Icon=odrive
+Exec=bash -c "$HOME/.odrive-agent/bin/odrive.py unsync \"%f\""

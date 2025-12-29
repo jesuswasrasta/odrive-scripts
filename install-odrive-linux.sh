@@ -86,28 +86,37 @@ else
     echo "Mount folder already exists: $HOME/odrive-agent-mount"
 fi
 
-echo "3. Setting up odrive icon..."
-# Copy odrive icon from current directory
+echo "3. Setting up odrive icons for MIME types..."
+# Install icons in hicolor theme directory for proper MIME type integration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ICON_SOURCE="$SCRIPT_DIR/odrive-icon.png"
-ICON_PATH="/usr/share/icons/odrive.png"
+ICON_SOURCE="$SCRIPT_DIR/odrive-logo.png"
+ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/mimetypes"
 
-if [ -f "$ICON_PATH" ] && [ "$FORCE_OVERWRITE" = false ]; then
-    echo "odrive icon already exists in $ICON_PATH"
-elif [ -f "$ICON_SOURCE" ]; then
-    if [ "$FORCE_OVERWRITE" = true ] && [ -f "$ICON_PATH" ]; then
-        echo "Force overwriting existing odrive icon..."
-    else
-        echo "Copying odrive icon from $ICON_SOURCE..."
-    fi
-    sudo mkdir -p /usr/share/icons
-    sudo cp "$ICON_SOURCE" "$ICON_PATH"
-    echo "Icon copied to $ICON_PATH"
-else
-    echo "Error: odrive-icon.png not found in script directory"
-    echo "Make sure the odrive-icon.png file is present in $SCRIPT_DIR"
+if [ ! -f "$ICON_SOURCE" ]; then
+    echo "Error: odrive-logo.png not found in script directory"
+    echo "Make sure the odrive-logo.png file is present in $SCRIPT_DIR"
     exit 1
 fi
+
+mkdir -p "$ICON_DIR"
+
+# Install MIME type icons
+for icon_name in "application-odrive-file.png" "application-odrive-folder.png" "odrive.png"; do
+    ICON_PATH="$ICON_DIR/$icon_name"
+
+    if [ -f "$ICON_PATH" ] && [ "$FORCE_OVERWRITE" = false ]; then
+        echo "Icon $icon_name already exists"
+    else
+        if [ "$FORCE_OVERWRITE" = true ] && [ -f "$ICON_PATH" ]; then
+            echo "Force overwriting $icon_name..."
+        else
+            echo "Installing $icon_name..."
+        fi
+        cp "$ICON_SOURCE" "$ICON_PATH"
+    fi
+done
+
+echo "Icons installed to $ICON_DIR"
 
 echo "4. Creating .desktop files for file associations..."
 
@@ -363,8 +372,36 @@ else
 - Service menu KDE6: $SERVICE_MENU_DIR_KDE6"
 fi
 
-echo "8. Updating desktop database..."
-update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
+echo "8. Updating desktop database and KDE cache..."
+
+# Update desktop database
+if command -v update-desktop-database &> /dev/null; then
+    update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
+    echo "Desktop database updated"
+fi
+
+# Rebuild KDE system configuration cache
+if [ "$KDE_VERSION" = "6" ]; then
+    if command -v kbuildsycoca6 &> /dev/null; then
+        kbuildsycoca6 --noincremental 2>/dev/null || true
+        echo "KDE6 cache rebuilt"
+    fi
+elif [ "$KDE_VERSION" = "5" ]; then
+    if command -v kbuildsycoca5 &> /dev/null; then
+        kbuildsycoca5 --noincremental 2>/dev/null || true
+        echo "KDE5 cache rebuilt"
+    fi
+else
+    # Try both if version is unknown
+    if command -v kbuildsycoca6 &> /dev/null; then
+        kbuildsycoca6 --noincremental 2>/dev/null || true
+        echo "KDE6 cache rebuilt"
+    fi
+    if command -v kbuildsycoca5 &> /dev/null; then
+        kbuildsycoca5 --noincremental 2>/dev/null || true
+        echo "KDE5 cache rebuilt"
+    fi
+fi
 
 echo "9. Setting up systemd user service..."
 
@@ -437,6 +474,8 @@ echo "Configuration files created:"
 echo "- odrive binaries: $HOME/.odrive-agent/bin/"
 echo "- Mount folder: $HOME/odrive-agent-mount/"
 echo "- .desktop files: $HOME/.local/share/applications/"
+echo "- MIME type icons: $HOME/.local/share/icons/hicolor/256x256/mimetypes/"
+echo "- MIME type definitions: $HOME/.local/share/mime/packages/"
 echo "- Recursive sync script: $HOME/.local/bin/"
 echo "- Systemd service: $HOME/.config/systemd/user/"
 echo "$CREATED_DIRS"

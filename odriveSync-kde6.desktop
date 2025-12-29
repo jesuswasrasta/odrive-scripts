@@ -6,15 +6,15 @@ Actions=odriveSync;odriveSyncAll;odriveUnsync;
 
 [Desktop Action odriveSyncAll]
 Name=odrive sync all (recursive)
-Icon=/usr/share/icons/odrive.png
-Exec=$HOME/.local/bin/odrive-sync-recursive.sh %f
+Icon=odrive
+Exec=bash -c "$HOME/.odrive-agent/bin/odrive-sync-recursive.sh \"%f\""
 
 [Desktop Action odriveSync]
 Name=odrive sync
-Icon=/usr/share/icons/odrive.png
-Exec=python "$HOME/.odrive-agent/bin/odrive.py" sync %f
+Icon=odrive
+Exec=bash -c "$HOME/.odrive-agent/bin/odrive.py sync \"%f\""
 
 [Desktop Action odriveUnsync]
 Name=odrive unsync
-Icon=/usr/share/icons/odrive.png
-Exec=python "$HOME/.odrive-agent/bin/odrive.py" unsync %f
+Icon=odrive
+Exec=bash -c "$HOME/.odrive-agent/bin/odrive.py unsync \"%f\""
