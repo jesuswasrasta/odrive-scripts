@@ -181,9 +181,13 @@ ICON_SOURCE="$SCRIPT_DIR/odrive-logo.png"
 ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/mimetypes"
 
 if [ ! -f "$ICON_SOURCE" ]; then
-    echo "Error: odrive-logo.png not found in script directory"
-    echo "Make sure the odrive-logo.png file is present in $SCRIPT_DIR"
-    exit 1
+    if [ "$CHECK_ONLY" = true ]; then
+        check_status "icon source file" "MISSING" "odrive-logo.png not found in $SCRIPT_DIR"
+    else
+        echo "Error: odrive-logo.png not found in script directory"
+        echo "Make sure the odrive-logo.png file is present in $SCRIPT_DIR"
+        exit 1
+    fi
 fi
 
 mkdir -p "$ICON_DIR"
@@ -192,7 +196,13 @@ mkdir -p "$ICON_DIR"
 for icon_name in "application-odrive-file.png" "application-odrive-folder.png" "odrive.png"; do
     ICON_PATH="$ICON_DIR/$icon_name"
 
-    if [ -f "$ICON_PATH" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    if [ "$CHECK_ONLY" = true ]; then
+        if [ -f "$ICON_PATH" ]; then
+            check_status "icon $icon_name" "OK"
+        else
+            check_status "icon $icon_name" "MISSING" "Expected: $ICON_PATH"
+        fi
+    elif [ -f "$ICON_PATH" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "Icon $icon_name already exists"
     else
         if [ "$FORCE_OVERWRITE" = true ] && [ -f "$ICON_PATH" ]; then
@@ -204,7 +214,7 @@ for icon_name in "application-odrive-file.png" "application-odrive-folder.png" "
     fi
 done
 
-echo "Icons installed to $ICON_DIR"
+[ "$CHECK_ONLY" = false ] && echo "Icons installed to $ICON_DIR"
 
 echo "4. Creating .desktop files for file associations..."
 
@@ -217,7 +227,13 @@ mkdir -p "$DESKTOP_DIR"
 
 # Copy desktop files
 for desktop_file in "odrive.desktop" "odrive-file.desktop" "odrive-folder.desktop"; do
-    if [ -f "$DESKTOP_DIR/$desktop_file" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    if [ "$CHECK_ONLY" = true ]; then
+        if [ -f "$DESKTOP_DIR/$desktop_file" ]; then
+            check_status "$desktop_file" "OK"
+        else
+            check_status "$desktop_file" "MISSING" "Expected: $DESKTOP_DIR/$desktop_file"
+        fi
+    elif [ -f "$DESKTOP_DIR/$desktop_file" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "File $desktop_file already exists"
     elif [ -f "$SCRIPT_DIR/$desktop_file" ]; then
         if [ "$FORCE_OVERWRITE" = true ] && [ -f "$DESKTOP_DIR/$desktop_file" ]; then
@@ -239,7 +255,13 @@ echo "5. Installing recursive sync helper script..."
 LOCAL_BIN_DIR="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN_DIR"
 
-if [ -f "$LOCAL_BIN_DIR/odrive-sync-recursive.sh" ] && [ "$FORCE_OVERWRITE" = false ]; then
+if [ "$CHECK_ONLY" = true ]; then
+    if [ -f "$LOCAL_BIN_DIR/odrive-sync-recursive.sh" ]; then
+        check_status "recursive sync script" "OK"
+    else
+        check_status "recursive sync script" "MISSING" "Expected: $LOCAL_BIN_DIR/odrive-sync-recursive.sh"
+    fi
+elif [ -f "$LOCAL_BIN_DIR/odrive-sync-recursive.sh" ] && [ "$FORCE_OVERWRITE" = false ]; then
     echo "Recursive sync script already exists"
 elif [ -f "$SCRIPT_DIR/odrive-sync-recursive.sh" ]; then
     if [ "$FORCE_OVERWRITE" = true ] && [ -f "$LOCAL_BIN_DIR/odrive-sync-recursive.sh" ]; then
@@ -266,7 +288,13 @@ echo "6. Installing MIME type definitions..."
 MIME_DIR="$HOME/.local/share/mime/packages"
 mkdir -p "$MIME_DIR"
 
-if [ -f "$MIME_DIR/odrive-mimetypes.xml" ] && [ "$FORCE_OVERWRITE" = false ]; then
+if [ "$CHECK_ONLY" = true ]; then
+    if [ -f "$MIME_DIR/odrive-mimetypes.xml" ]; then
+        check_status "MIME type definitions" "OK"
+    else
+        check_status "MIME type definitions" "MISSING" "Expected: $MIME_DIR/odrive-mimetypes.xml"
+    fi
+elif [ -f "$MIME_DIR/odrive-mimetypes.xml" ] && [ "$FORCE_OVERWRITE" = false ]; then
     echo "MIME type definitions already exist"
 elif [ -f "$SCRIPT_DIR/odrive-mimetypes.xml" ]; then
     if [ "$FORCE_OVERWRITE" = true ] && [ -f "$MIME_DIR/odrive-mimetypes.xml" ]; then
@@ -313,12 +341,22 @@ fi
 
 # Create service menu based on detected version
 if [ "$KDE_VERSION" = "5" ]; then
-    echo "Detected KDE Plasma 5, creating service menu for KDE5..."
     SERVICE_MENU_DIR="$HOME/.local/share/kservices5/ServiceMenus"
-    mkdir -p "$SERVICE_MENU_DIR"
     CREATED_DIRS="- Service menu KDE5: $SERVICE_MENU_DIR"
-    
-    if [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    if [ "$CHECK_ONLY" = true ]; then
+        echo "Detected KDE Plasma 5, checking service menus..."
+    else
+        echo "Detected KDE Plasma 5, creating service menu for KDE5..."
+        mkdir -p "$SERVICE_MENU_DIR"
+    fi
+
+    if [ "$CHECK_ONLY" = true ]; then
+        if [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ]; then
+            check_status "KDE5 odriveSync.desktop" "OK"
+        else
+            check_status "KDE5 odriveSync.desktop" "MISSING" "Expected: $SERVICE_MENU_DIR/odriveSync.desktop"
+        fi
+    elif [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE5 service menu already exists"
     elif [ -f "$SCRIPT_DIR/odriveSync-kde5.desktop" ]; then
         if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ]; then
@@ -334,7 +372,13 @@ if [ "$KDE_VERSION" = "5" ]; then
     fi
     
     # Install folder service menu for KDE5
-    if [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    if [ "$CHECK_ONLY" = true ]; then
+        if [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ]; then
+            check_status "KDE5 odriveFolders.desktop" "OK"
+        else
+            check_status "KDE5 odriveFolders.desktop" "MISSING" "Expected: $SERVICE_MENU_DIR/odriveFolders.desktop"
+        fi
+    elif [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE5 folder service menu already exists"
     elif [ -f "$SCRIPT_DIR/odriveFolders-kde5.desktop" ]; then
         if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ]; then
@@ -349,12 +393,22 @@ if [ "$KDE_VERSION" = "5" ]; then
     fi
 
 elif [ "$KDE_VERSION" = "6" ]; then
-    echo "Detected KDE Plasma 6, creating service menu for KDE6..."
     SERVICE_MENU_DIR="$HOME/.local/share/kio/servicemenus"
-    mkdir -p "$SERVICE_MENU_DIR"
     CREATED_DIRS="- Service menu KDE6: $SERVICE_MENU_DIR"
-    
-    if [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    if [ "$CHECK_ONLY" = true ]; then
+        echo "Detected KDE Plasma 6, checking service menus..."
+    else
+        echo "Detected KDE Plasma 6, creating service menu for KDE6..."
+        mkdir -p "$SERVICE_MENU_DIR"
+    fi
+
+    if [ "$CHECK_ONLY" = true ]; then
+        if [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ]; then
+            check_status "KDE6 odriveSync.desktop" "OK"
+        else
+            check_status "KDE6 odriveSync.desktop" "MISSING" "Expected: $SERVICE_MENU_DIR/odriveSync.desktop"
+        fi
+    elif [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE6 service menu already exists"
     elif [ -f "$SCRIPT_DIR/odriveSync-kde6.desktop" ]; then
         if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR/odriveSync.desktop" ]; then
@@ -370,7 +424,13 @@ elif [ "$KDE_VERSION" = "6" ]; then
     fi
     
     # Install folder service menu for KDE6
-    if [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    if [ "$CHECK_ONLY" = true ]; then
+        if [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ]; then
+            check_status "KDE6 odriveFolders.desktop" "OK"
+        else
+            check_status "KDE6 odriveFolders.desktop" "MISSING" "Expected: $SERVICE_MENU_DIR/odriveFolders.desktop"
+        fi
+    elif [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE6 folder service menu already exists"
     elif [ -f "$SCRIPT_DIR/odriveFolders-kde6.desktop" ]; then
         if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR/odriveFolders.desktop" ]; then
@@ -385,14 +445,24 @@ elif [ "$KDE_VERSION" = "6" ]; then
     fi
 
 else
-    echo "Warning: Unable to detect KDE Plasma version"
-    echo "Creating service menu for both versions for compatibility..."
-    
-    # KDE5
     SERVICE_MENU_DIR_KDE5="$HOME/.local/share/kservices5/ServiceMenus"
-    mkdir -p "$SERVICE_MENU_DIR_KDE5"
-    
-    if [ -f "$SERVICE_MENU_DIR_KDE5/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    SERVICE_MENU_DIR_KDE6="$HOME/.local/share/kio/servicemenus"
+    if [ "$CHECK_ONLY" = true ]; then
+        echo "Warning: Unable to detect KDE Plasma version, checking both..."
+    else
+        echo "Warning: Unable to detect KDE Plasma version"
+        echo "Creating service menu for both versions for compatibility..."
+        mkdir -p "$SERVICE_MENU_DIR_KDE5"
+    fi
+
+    # KDE5
+    if [ "$CHECK_ONLY" = true ]; then
+        if [ -f "$SERVICE_MENU_DIR_KDE5/odriveSync.desktop" ]; then
+            check_status "KDE5 odriveSync.desktop (fallback)" "OK"
+        else
+            check_status "KDE5 odriveSync.desktop (fallback)" "MISSING" "Expected: $SERVICE_MENU_DIR_KDE5/odriveSync.desktop"
+        fi
+    elif [ -f "$SERVICE_MENU_DIR_KDE5/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE5 service menu already exists (fallback)"
     elif [ -f "$SCRIPT_DIR/odriveSync-kde5.desktop" ]; then
         if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR_KDE5/odriveSync.desktop" ]; then
@@ -408,7 +478,13 @@ else
     fi
     
     # Install folder service menu for KDE5 (fallback)
-    if [ -f "$SERVICE_MENU_DIR_KDE5/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    if [ "$CHECK_ONLY" = true ]; then
+        if [ -f "$SERVICE_MENU_DIR_KDE5/odriveFolders.desktop" ]; then
+            check_status "KDE5 odriveFolders.desktop (fallback)" "OK"
+        else
+            check_status "KDE5 odriveFolders.desktop (fallback)" "MISSING" "Expected: $SERVICE_MENU_DIR_KDE5/odriveFolders.desktop"
+        fi
+    elif [ -f "$SERVICE_MENU_DIR_KDE5/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE5 folder service menu already exists (fallback)"
     elif [ -f "$SCRIPT_DIR/odriveFolders-kde5.desktop" ]; then
         if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR_KDE5/odriveFolders.desktop" ]; then
@@ -423,10 +499,15 @@ else
     fi
     
     # KDE6
-    SERVICE_MENU_DIR_KDE6="$HOME/.local/share/kio/servicemenus"
-    mkdir -p "$SERVICE_MENU_DIR_KDE6"
-    
-    if [ -f "$SERVICE_MENU_DIR_KDE6/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    [ "$CHECK_ONLY" = false ] && mkdir -p "$SERVICE_MENU_DIR_KDE6"
+
+    if [ "$CHECK_ONLY" = true ]; then
+        if [ -f "$SERVICE_MENU_DIR_KDE6/odriveSync.desktop" ]; then
+            check_status "KDE6 odriveSync.desktop (fallback)" "OK"
+        else
+            check_status "KDE6 odriveSync.desktop (fallback)" "MISSING" "Expected: $SERVICE_MENU_DIR_KDE6/odriveSync.desktop"
+        fi
+    elif [ -f "$SERVICE_MENU_DIR_KDE6/odriveSync.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE6 service menu already exists (fallback)"
     elif [ -f "$SCRIPT_DIR/odriveSync-kde6.desktop" ]; then
         if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR_KDE6/odriveSync.desktop" ]; then
@@ -442,7 +523,13 @@ else
     fi
     
     # Install folder service menu for KDE6 (fallback)
-    if [ -f "$SERVICE_MENU_DIR_KDE6/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
+    if [ "$CHECK_ONLY" = true ]; then
+        if [ -f "$SERVICE_MENU_DIR_KDE6/odriveFolders.desktop" ]; then
+            check_status "KDE6 odriveFolders.desktop (fallback)" "OK"
+        else
+            check_status "KDE6 odriveFolders.desktop (fallback)" "MISSING" "Expected: $SERVICE_MENU_DIR_KDE6/odriveFolders.desktop"
+        fi
+    elif [ -f "$SERVICE_MENU_DIR_KDE6/odriveFolders.desktop" ] && [ "$FORCE_OVERWRITE" = false ]; then
         echo "KDE6 folder service menu already exists (fallback)"
     elif [ -f "$SCRIPT_DIR/odriveFolders-kde6.desktop" ]; then
         if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SERVICE_MENU_DIR_KDE6/odriveFolders.desktop" ]; then
@@ -462,32 +549,36 @@ fi
 
 echo "8. Updating desktop database and KDE cache..."
 
-# Update desktop database
-if command -v update-desktop-database &> /dev/null; then
-    update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
-    echo "Desktop database updated"
-fi
-
-# Rebuild KDE system configuration cache
-if [ "$KDE_VERSION" = "6" ]; then
-    if command -v kbuildsycoca6 &> /dev/null; then
-        kbuildsycoca6 --noincremental 2>/dev/null || true
-        echo "KDE6 cache rebuilt"
-    fi
-elif [ "$KDE_VERSION" = "5" ]; then
-    if command -v kbuildsycoca5 &> /dev/null; then
-        kbuildsycoca5 --noincremental 2>/dev/null || true
-        echo "KDE5 cache rebuilt"
-    fi
+if [ "$CHECK_ONLY" = true ]; then
+    echo "  (skipped in check mode)"
 else
-    # Try both if version is unknown
-    if command -v kbuildsycoca6 &> /dev/null; then
-        kbuildsycoca6 --noincremental 2>/dev/null || true
-        echo "KDE6 cache rebuilt"
+    # Update desktop database
+    if command -v update-desktop-database &> /dev/null; then
+        update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
+        echo "Desktop database updated"
     fi
-    if command -v kbuildsycoca5 &> /dev/null; then
-        kbuildsycoca5 --noincremental 2>/dev/null || true
-        echo "KDE5 cache rebuilt"
+
+    # Rebuild KDE system configuration cache
+    if [ "$KDE_VERSION" = "6" ]; then
+        if command -v kbuildsycoca6 &> /dev/null; then
+            kbuildsycoca6 --noincremental 2>/dev/null || true
+            echo "KDE6 cache rebuilt"
+        fi
+    elif [ "$KDE_VERSION" = "5" ]; then
+        if command -v kbuildsycoca5 &> /dev/null; then
+            kbuildsycoca5 --noincremental 2>/dev/null || true
+            echo "KDE5 cache rebuilt"
+        fi
+    else
+        # Try both if version is unknown
+        if command -v kbuildsycoca6 &> /dev/null; then
+            kbuildsycoca6 --noincremental 2>/dev/null || true
+            echo "KDE6 cache rebuilt"
+        fi
+        if command -v kbuildsycoca5 &> /dev/null; then
+            kbuildsycoca5 --noincremental 2>/dev/null || true
+            echo "KDE5 cache rebuilt"
+        fi
     fi
 fi
 
@@ -498,7 +589,13 @@ SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 mkdir -p "$SYSTEMD_USER_DIR"
 
 # Install systemd service file
-if [ -f "$SYSTEMD_USER_DIR/odrive.service" ] && [ "$FORCE_OVERWRITE" = false ]; then
+if [ "$CHECK_ONLY" = true ]; then
+    if [ -f "$SYSTEMD_USER_DIR/odrive.service" ]; then
+        check_status "systemd service" "OK"
+    else
+        check_status "systemd service" "MISSING" "Expected: $SYSTEMD_USER_DIR/odrive.service"
+    fi
+elif [ -f "$SYSTEMD_USER_DIR/odrive.service" ] && [ "$FORCE_OVERWRITE" = false ]; then
     echo "Systemd service already exists"
 elif [ -f "$SCRIPT_DIR/odrive.service" ]; then
     if [ "$FORCE_OVERWRITE" = true ] && [ -f "$SYSTEMD_USER_DIR/odrive.service" ]; then
@@ -547,7 +644,7 @@ if [[ "$enable_service" =~ ^[Yy]$ ]]; then
     else
         echo "Error enabling systemd service"
     fi
-else
+elif [ "$CHECK_ONLY" = false ]; then
     echo "Systemd service not enabled. You can do it manually later with:"
     echo "  systemctl --user enable odrive.service"
     echo "  systemctl --user start odrive.service"

@@ -8,7 +8,7 @@ Encoding=UTF-8
 [Desktop Action odriveSync]
 Name=odrive sync
 Icon=odrive
-Exec=bash -c "$HOME/.odrive-agent/bin/odrive.py sync \"%f\""
+Exec=bash -c "python3 \"$HOME/.odrive-agent/bin/odrive.py\" sync \"%f\""
 
 [Desktop Action odriveSyncAll]
 Name=odrive sync all (recursive)
@@ -18,4 +18,4 @@ Exec=bash -c "$HOME/.odrive-agent/bin/odrive-sync-recursive.sh \"%f\""
 [Desktop Action odriveUnsync]
 Name=odrive unsync
 Icon=odrive
-Exec=bash -c "$HOME/.odrive-agent/bin/odrive.py unsync \"%f\""
+Exec=bash -c "python3 \"$HOME/.odrive-agent/bin/odrive.py\" unsync \"%f\""

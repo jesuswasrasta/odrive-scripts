@@ -8,4 +8,4 @@ Encoding=UTF-8
 [Desktop Action odriveUnsync]
 Name=odrive unsync
 Icon=odrive
-Exec=bash -c "$HOME/.odrive-agent/bin/odrive.py unsync \"%f\""
+Exec=bash -c "python3 \"$HOME/.odrive-agent/bin/odrive.py\" unsync \"%f\""
